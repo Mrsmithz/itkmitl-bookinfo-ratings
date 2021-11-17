@@ -1,12 +1,15 @@
-name: uat-env
+name: deploy-non-prd
 on:
   push:
     branches:
+      - dev
       - main
 jobs:
   build:
     runs-on: ubuntu-20.04
     steps:
+      - name: Set env
+        run: echo "ENV_NAME=$( [ "$GITHUB_REF" == "refs/heads/main" ] && echo 'uat' || echo ${GITHUB_REF##*/} )" >> $GITHUB_ENV
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v1
         with:
@@ -17,11 +20,13 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           push: true
-          tags: ghcr.io/mrsmithz/itkmitl-bookinfo-ratings:dev
+          tags: ghcr.io/mrsmithz/itkmitl-bookinfo-ratings:${{ env.ENV_NAME }}
   deploy:
     needs: build
     runs-on: ubuntu-20.04
     steps:
+      - name: Set env
+        run: echo "ENV_NAME=$( [ "$GITHUB_REF" == "refs/heads/main" ] && echo 'uat' || echo ${GITHUB_REF##*/} )" >> $GITHUB_ENV
       - name: Checkout code
         uses: actions/checkout@v2
       - name: get-credentials
@@ -34,10 +39,10 @@ jobs:
         uses: deliverybot/helm@v1
         with:
           helm: helm3
-          release: bookinfo-uat-ratings
-          namespace: student21-bookinfo-uat
+          release: bookinfo-${{ env.ENV_NAME }}-ratings
+          namespace: student21-bookinfo-${{ env.ENV_NAME }}
           chart: k8s/helm
-          value-files: k8s/helm-values/values-bookinfo-uat-ratings.yaml
+          value-files: k8s/helm-values/values-bookinfo-${{ env.ENV_NAME }}-ratings.yaml
           values: |
             {
               "extraEnv": {
